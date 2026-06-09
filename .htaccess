@@ -1,0 +1,12 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Prevent rewrite loops for the public directory.
+    RewriteRule ^public(/.*)?$ - [L]
+
+    # Rewrite root requests into the public folder.
+    RewriteRule ^$ public/ [L]
+
+    # Redirect all other requests to the public folder.
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
