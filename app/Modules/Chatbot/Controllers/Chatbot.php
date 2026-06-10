@@ -7,6 +7,7 @@ use Modules\Chatbot\Config\Ollama as OllamaConfig;
 use Modules\Chatbot\Libraries\OllamaClient;
 use Modules\Chatbot\Models\ConversationModel;
 use Modules\Chatbot\Models\MessageModel;
+use Modules\Admin\Models\BrandingModel;
 
 class Chatbot extends Controller
 {
@@ -78,6 +79,9 @@ class Chatbot extends Controller
         helper('url');
         $sendUrl = base_url('chatbot/send');
 
+        $branding = new BrandingModel();
+        $settings = $branding->getSettings();
+
         return view('Modules\Chatbot\Views\chat', [
             'messages'        => $messages,
             'conversationId'  => $conversationId,
@@ -86,6 +90,16 @@ class Chatbot extends Controller
             'currentPrompt'   => $currentPrompt,
             'availableModels' => $availableModels,
             'username'        => session('username'),
+            'isAdmin'         => session('is_admin') ? 1 : 0,
+            'appName'         => $settings->app_name ?? 'AI ChatBot',
+            'welcomeTitle'    => $settings->welcome_title ?? null,
+            'welcomeSubtitle' => $settings->welcome_subtitle ?? null,
+            'logoPath'        => $settings->logo_path ?? null,
+            'faviconPath'     => $settings->favicon_path ?? null,
+            'footerText'      => $settings->footer_text ?? null,
+            'colorStart'      => $settings->primary_color_start ?? '#667eea',
+            'colorMid'        => $settings->primary_color_mid ?? '#764ba2',
+            'colorEnd'        => $settings->primary_color_end ?? '#f093fb',
         ]);
     }
 

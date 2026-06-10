@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI ChatBot</title>
+    <title><?= esc($appName) ?></title>
+    <?php if ($faviconPath): ?>
+        <link rel="icon" type="image/x-icon" href="<?= base_url($faviconPath) ?>">
+    <?php endif; ?>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
@@ -13,7 +16,7 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             min-height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            background: linear-gradient(135deg, <?= $colorStart ?> 0%, <?= $colorMid ?> 50%, <?= $colorEnd ?> 100%);
             background-size: 400% 400%;
             animation: gradientShift 15s ease infinite;
             display: flex;
@@ -240,6 +243,11 @@
                 <button onclick="toggleDarkMode()" class="w-full glass-card text-white/70 rounded-xl py-2 px-4 text-xs flex items-center justify-center gap-2 hover:bg-white/10 transition-all">
                     <i class="fas" id="darkModeIcon">&#xf185;</i> <span id="darkModeLabel">Dark Mode</span>
                 </button>
+                <?php if ($isAdmin): ?>
+                <a href="<?= base_url('admin/settings') ?>" class="w-full glass-card text-white/70 rounded-xl py-2 px-4 text-xs flex items-center justify-center gap-2 hover:bg-white/10 transition-all">
+                    <i class="fas fa-cog"></i> <span>Admin</span>
+                </a>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -250,11 +258,15 @@
                 <button id="sidebarToggle" onclick="toggleSidebar()" class="text-white/70 hover:text-white transition-colors text-lg mr-1">
                     <i class="fas fa-bars"></i>
                 </button>
-                <div class="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center flex-shrink-0">
-                    <i class="fas fa-robot text-white/80 text-lg"></i>
+                <div class="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    <?php if ($logoPath): ?>
+                        <img src="<?= base_url($logoPath) ?>" alt="Logo" class="w-full h-full object-cover">
+                    <?php else: ?>
+                        <i class="fas fa-robot text-white/80 text-lg"></i>
+                    <?php endif; ?>
                 </div>
                 <div class="flex-1 min-w-0">
-                    <h1 class="text-white font-semibold text-sm">AI ChatBot</h1>
+                    <h1 class="text-white font-semibold text-sm"><?= esc($appName) ?></h1>
                     <div class="flex items-center gap-1.5">
                         <span id="statusDot" class="w-2 h-2 rounded-full bg-gray-400 inline-block"></span>
                         <span id="statusText" class="text-white/50 text-xs">Checking...</span>
@@ -269,6 +281,11 @@
                 <button onclick="toggleDarkMode()" class="text-white/60 hover:text-white/90 transition-colors text-lg p-1 hidden md:flex">
                     <i class="fas" id="darkModeIconDesktop">&#xf185;</i>
                 </button>
+                <?php if ($isAdmin): ?>
+                <a href="<?= base_url('admin/settings') ?>" class="text-white/60 hover:text-white/90 transition-colors text-base p-1 hidden md:flex" title="Admin">
+                    <i class="fas fa-cog"></i>
+                </a>
+                <?php endif; ?>
                 <div class="flex items-center gap-1.5 border-l border-white/10 pl-3 ml-1">
                     <span class="text-white/50 text-xs hidden md:inline"><?= esc($username ?? '') ?></span>
                     <a href="<?= base_url('auth/logout') ?>" class="text-white/40 hover:text-red-400 transition-colors text-xs" title="Logout">
@@ -296,11 +313,15 @@
                 <div id="messages" class="space-y-3">
                     <?php if (empty($messages)): ?>
                         <div id="welcomeScreen" class="flex flex-col items-center justify-center py-8 text-center">
-                            <div class="w-20 h-20 rounded-full bg-white/10 backdrop-blur-xl flex items-center justify-center mb-4 border border-white/15">
-                                <i class="fas fa-robot text-white/70 text-3xl"></i>
+                            <div class="w-20 h-20 rounded-full bg-white/10 backdrop-blur-xl flex items-center justify-center mb-4 border border-white/15 overflow-hidden">
+                                <?php if ($logoPath): ?>
+                                    <img src="<?= base_url($logoPath) ?>" alt="Logo" class="w-full h-full object-cover">
+                                <?php else: ?>
+                                    <i class="fas fa-robot text-white/70 text-3xl"></i>
+                                <?php endif; ?>
                             </div>
-                            <h2 class="text-white/90 text-xl font-semibold mb-1">Hello! I'm AI ChatBot</h2>
-                            <p class="text-white/50 text-sm max-w-xs">Ask me anything — I'm here to help!</p>
+                            <h2 class="text-white/90 text-xl font-semibold mb-1"><?= esc(str_replace('{app_name}', $appName, $welcomeTitle ?? "Hello! I'm {$appName}")) ?></h2>
+                            <p class="text-white/50 text-sm max-w-xs"><?= esc($welcomeSubtitle ?? 'Ask me anything — I\'m here to help!') ?></p>
                             <div class="flex flex-wrap gap-2 justify-center mt-6 suggestions-row" style="max-width:400px;">
                                 <span class="chip" onclick="sendSuggestion('Tell me a joke')">Tell me a joke</span>
                                 <span class="chip" onclick="sendSuggestion('Write a poem')">Write a poem</span>
@@ -409,6 +430,11 @@
                     <span class="chip flex-shrink-0" onclick="sendSuggestion('Write code')">Write code</span>
                 </div>
             </div>
+            <?php if ($footerText): ?>
+            <div class="text-center py-2">
+                <span class="text-white/30 text-xs"><?= esc($footerText) ?></span>
+            </div>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -424,6 +450,13 @@
         var baseUrl = sendUrl.replace('/send', '');
         var availableModels = <?= json_encode($modelNames) ?>;
         var currentModel = <?= json_encode($currentModel) ?>;
+        var branding = {
+            appName: <?= json_encode($appName) ?>,
+            welcomeTitle: <?= json_encode($welcomeTitle) ?>,
+            welcomeSubtitle: <?= json_encode($welcomeSubtitle) ?>,
+            logoPath: <?= json_encode($logoPath) ?>,
+            isAdmin: <?= json_encode($isAdmin) ?>,
+        };
 
         var activeConversationId = initialConversationId;
         var isSending = false;
@@ -986,9 +1019,14 @@
             var ws = document.createElement('div');
             ws.id = 'welcomeScreen';
             ws.className = 'flex flex-col items-center justify-center py-8 text-center';
-            ws.innerHTML = '<div class="w-20 h-20 rounded-full bg-white/10 backdrop-blur-xl flex items-center justify-center mb-4 border border-white/15"><i class="fas fa-robot text-white/70 text-3xl"></i></div>' +
-                '<h2 class="text-white/90 text-xl font-semibold mb-1">Hello! I\'m AI ChatBot</h2>' +
-                '<p class="text-white/50 text-sm max-w-xs">Ask me anything — I\'m here to help!</p>' +
+            var title = (branding.welcomeTitle || "Hello! I'm {app_name}").replace('{app_name}', branding.appName);
+            var subtitle = branding.welcomeSubtitle || "Ask me anything \u2014 I'm here to help!";
+            var logoHtml = branding.logoPath
+                ? '<img src="' + baseUrl.replace('/chatbot', '') + '/' + branding.logoPath + '" alt="Logo" class="w-full h-full object-cover">'
+                : '<i class="fas fa-robot text-white/70 text-3xl"></i>';
+            ws.innerHTML = '<div class="w-20 h-20 rounded-full bg-white/10 backdrop-blur-xl flex items-center justify-center mb-4 border border-white/15 overflow-hidden">' + logoHtml + '</div>' +
+                '<h2 class="text-white/90 text-xl font-semibold mb-1">' + escHtml(title) + '</h2>' +
+                '<p class="text-white/50 text-sm max-w-xs">' + escHtml(subtitle) + '</p>' +
                 '<div class="flex flex-wrap gap-2 justify-center mt-6 suggestions-row" style="max-width:400px;">' +
                 '<span class="chip" onclick="sendSuggestion(\'Tell me a joke\')">Tell me a joke</span>' +
                 '<span class="chip" onclick="sendSuggestion(\'Write a poem\')">Write a poem</span>' +

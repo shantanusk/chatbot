@@ -25,6 +25,7 @@ class Auth extends BaseController
                 session()->set([
                     'user_id'  => $user->id,
                     'username' => $user->username,
+                    'is_admin' => (int) ($user->is_admin ?? 0),
                 ]);
                 return redirect()->to(base_url('chatbot'));
             }
@@ -70,6 +71,7 @@ class Auth extends BaseController
             session()->set([
                 'user_id'  => $user->id,
                 'username' => $user->username,
+                'is_admin' => (int) ($user->is_admin ?? 0),
             ]);
 
             return redirect()->to(base_url('chatbot'));
