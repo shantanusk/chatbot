@@ -17,6 +17,8 @@ AI-powered chatbot built with **CodeIgniter 4** using **HMVC** architecture and 
 - **Model Selector** — Dropdown to switch between available Ollama models per conversation
 - **Custom System Prompt** — Per-conversation system prompt via settings panel
 - **Keyboard Shortcuts** — Ctrl+K new chat, Ctrl+L focus input, Ctrl+Shift+C copy last bot response, Escape close sidebar/stop speech
+- **Admin Panel** — Dashboard with branding management at `/admin`
+- **Branding Settings** — Customizable app name, logo, favicon, welcome messages, footer text, gradient colors via admin UI
 - **User Authentication** — Login/register/logout with bcrypt, conversations tied to user accounts
 - **Soft Delete** — Conversations are soft-deleted with undo toast and restore API
 - **User-Based Persistence** — Chat history follows users across devices
@@ -171,21 +173,31 @@ app/
 │       └── register.php    # Glassmorphism register page
 │
 └── Modules/
-    └── Chatbot/                 # Self-contained HMVC module
+    ├── Chatbot/                 # Self-contained HMVC module
+    │   ├── Config/
+    │   │   ├── Ollama.php       # Ollama API configuration
+    │   │   └── Routes.php       # Module routes (13 endpoints, auth filter)
+    │   ├── Controllers/
+    │   │   └── Chatbot.php      # Controller with 13 methods
+    │   ├── Database/
+    │   │   └── Migrations/      # Table creation, feature additions, soft delete
+    │   ├── Libraries/
+    │   │   └── OllamaClient.php # cURL wrapper for Ollama API with streaming
+    │   ├── Models/
+    │   │   ├── ConversationModel.php  # Soft-delete enabled
+    │   │   └── MessageModel.php       # Soft-delete enabled
+    │   └── Views/
+    │       └── chat.php         # Glassmorphism UI (Tailwind + vanilla JS)
+    └── Admin/                   # Admin HMVC module
         ├── Config/
-        │   ├── Ollama.php       # Ollama API configuration
-        │   └── Routes.php       # Module routes (13 endpoints, auth filter)
+        │   └── Routes.php       # Admin routes
         ├── Controllers/
-        │   └── Chatbot.php      # Controller with 13 methods
-        ├── Database/
-        │   └── Migrations/      # Table creation, feature additions, soft delete
-        ├── Libraries/
-        │   └── OllamaClient.php # cURL wrapper for Ollama API with streaming
+        │   └── Admin.php        # Dashboard + branding settings
         ├── Models/
-        │   ├── ConversationModel.php  # Soft-delete enabled
-        │   └── MessageModel.php       # Soft-delete enabled
+        │   └── BrandingModel.php # App branding settings
         └── Views/
-            └── chat.php         # Glassmorphism UI (Tailwind + vanilla JS)
+            ├── dashboard.php    # Admin dashboard
+            └── settings.php     # Branding settings form
 ```
 
 ### HMVC Pattern
@@ -277,6 +289,9 @@ JavaScript appends bot bubble (markdown-rendered + syntax-highlighted) + updates
 | POST | `/chatbot/upload` | `Chatbot::upload` | Upload a text/code file |
 | GET | `/chatbot/status` | `Chatbot::status` | Check Ollama availability |
 | GET | `/chatbot/models` | `Chatbot::listModels` | List available Ollama models |
+| GET | `/admin` | `Admin::index` | Admin dashboard |
+| GET | `/admin/settings` | `Admin::settings` | Branding settings page |
+| POST | `/admin/settings/save` | `Admin::save` | Save branding settings (logo, colors, etc.) |
 
 All `/chatbot/*` routes are protected by the `auth` filter.
 
@@ -416,6 +431,7 @@ Check if Ollama is reachable.
 | `username` | VARCHAR(100) | Unique |
 | `email` | VARCHAR(255) | Unique |
 | `password` | VARCHAR(255) | bcrypt hashed |
+| `is_admin` | TINYINT(1) | Default 0, set to 1 for admin access |
 | `created_at` | DATETIME | |
 | `updated_at` | DATETIME | |
 
@@ -443,6 +459,22 @@ Check if Ollama is reachable.
 | `message` | TEXT | Message content |
 | `created_at` | DATETIME | |
 | `deleted_at` | DATETIME | Soft delete timestamp |
+
+### `branding_settings`
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | INT(11) UNSIGNED | Primary key, always 1 (single-row) |
+| `app_name` | VARCHAR(100) | Default "AI ChatBot" |
+| `welcome_title` | VARCHAR(200) | Supports `{app_name}` placeholder |
+| `welcome_subtitle` | VARCHAR(300) | |
+| `logo_path` | VARCHAR(255) | Nullable, path to uploaded logo |
+| `favicon_path` | VARCHAR(255) | Nullable, path to uploaded favicon |
+| `footer_text` | VARCHAR(500) | Nullable |
+| `primary_color_start` | VARCHAR(7) | Hex color for gradient start |
+| `primary_color_mid` | VARCHAR(7) | Hex color for gradient middle |
+| `primary_color_end` | VARCHAR(7) | Hex color for gradient end |
+| `updated_at` | DATETIME | |
 
 **Relationships:** `users` 1:N `conversations`, `conversations` 1:N `messages`
 
