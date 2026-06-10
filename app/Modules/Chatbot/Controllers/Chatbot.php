@@ -19,23 +19,17 @@ class Chatbot extends Controller
         $this->messageModel      = new MessageModel();
     }
 
-    private function ensureSession(): string
+    private function getUserId(): int
     {
-        $session = service('session');
-        $sessionId = $session->get('chatbot_session_id');
-        if (! $sessionId) {
-            $sessionId = bin2hex(random_bytes(16));
-            $session->set('chatbot_session_id', $sessionId);
-        }
-        return $sessionId;
+        return session('user_id');
     }
 
     public function index()
     {
-        $sessionId = $this->ensureSession();
+        $userId = $this->getUserId();
 
         $conversation = $this->conversationModel
-            ->where('session_id', $sessionId)
+            ->where('user_id', $userId)
             ->orderBy('created_at', 'DESC')
             ->first();
 
@@ -67,6 +61,7 @@ class Chatbot extends Controller
             'currentModel'    => $currentModel,
             'currentPrompt'   => $currentPrompt,
             'availableModels' => $availableModels,
+            'username'        => session('username'),
         ]);
     }
 
@@ -81,7 +76,7 @@ class Chatbot extends Controller
             return $this->response->setStatusCode(400)->setJSON(['error' => 'Message is required']);
         }
 
-        $sessionId = $this->ensureSession();
+        $userId = $this->getUserId();
         $conversationId = $this->request->getPost('conversation_id');
         $model = $this->request->getPost('model');
         $systemPrompt = $this->request->getPost('system_prompt');
@@ -89,12 +84,12 @@ class Chatbot extends Controller
 
         if (! $conversationId) {
             $conversation = $this->conversationModel
-                ->where('session_id', $sessionId)
+                ->where('user_id', $userId)
                 ->orderBy('created_at', 'DESC')
                 ->first();
 
             if (! $conversation) {
-                $data = ['session_id' => $sessionId, 'title' => mb_substr($message, 0, 50)];
+                $data = ['user_id' => $userId, 'title' => mb_substr($message, 0, 50)];
                 if ($model) $data['model'] = $model;
                 if ($systemPrompt) $data['system_prompt'] = $systemPrompt;
                 $conversationId = $this->conversationModel->insert($data);
@@ -192,10 +187,10 @@ class Chatbot extends Controller
             return $this->response->setStatusCode(400)->setJSON(['error' => 'Invalid request']);
         }
 
-        $sessionId = $this->ensureSession();
+        $userId = $this->getUserId();
 
         $conversations = $this->conversationModel
-            ->where('session_id', $sessionId)
+            ->where('user_id', $userId)
             ->orderBy('updated_at', 'DESC')
             ->findAll();
 
@@ -222,10 +217,10 @@ class Chatbot extends Controller
             return $this->response->setStatusCode(400)->setJSON(['error' => 'Invalid request']);
         }
 
-        $sessionId = $this->ensureSession();
+        $userId = $this->getUserId();
         $model = $this->request->getPost('model');
 
-        $data = ['session_id' => $sessionId, 'title' => 'New Conversation'];
+        $data = ['user_id' => $userId, 'title' => 'New Conversation'];
         if ($model) $data['model'] = $model;
 
         $id = $this->conversationModel->insert($data);

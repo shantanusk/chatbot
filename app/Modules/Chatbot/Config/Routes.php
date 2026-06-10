@@ -4,7 +4,7 @@ if (! isset($routes)) {
     $routes = service('routes');
 }
 
-$routes->group('chatbot', ['namespace' => 'Modules\Chatbot\Controllers'], static function ($routes) {
+$routes->group('chatbot', ['namespace' => 'Modules\Chatbot\Controllers', 'filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'Chatbot::index');
     $routes->post('send', 'Chatbot::send');
     $routes->get('conversations', 'Chatbot::listConversations');

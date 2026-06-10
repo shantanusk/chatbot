@@ -248,6 +248,12 @@
                 <button onclick="toggleDarkMode()" class="text-white/60 hover:text-white/90 transition-colors text-lg p-1 hidden md:flex">
                     <i class="fas" id="darkModeIconDesktop">&#xf185;</i>
                 </button>
+                <div class="flex items-center gap-1.5 border-l border-white/10 pl-3 ml-1">
+                    <span class="text-white/50 text-xs hidden md:inline"><?= esc($username ?? '') ?></span>
+                    <a href="/auth/logout" class="text-white/40 hover:text-red-400 transition-colors text-xs" title="Logout">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </a>
+                </div>
             </div>
 
             <!-- Settings Panel -->
