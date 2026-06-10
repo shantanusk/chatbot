@@ -73,18 +73,21 @@ class Chatbot extends Controller
 
         $sessionId = $this->ensureSession();
 
-        $conversation = $this->conversationModel
-            ->where('session_id', $sessionId)
-            ->orderBy('created_at', 'DESC')
-            ->first();
+        $conversationId = $this->request->getPost('conversation_id');
+        if (! $conversationId) {
+            $conversation = $this->conversationModel
+                ->where('session_id', $sessionId)
+                ->orderBy('created_at', 'DESC')
+                ->first();
 
-        if (! $conversation) {
-            $conversationId = $this->conversationModel->insert([
-                'session_id' => $sessionId,
-                'title'      => mb_substr($message, 0, 50),
-            ]);
-        } else {
-            $conversationId = $conversation->id;
+            if (! $conversation) {
+                $conversationId = $this->conversationModel->insert([
+                    'session_id' => $sessionId,
+                    'title'      => mb_substr($message, 0, 50),
+                ]);
+            } else {
+                $conversationId = $conversation->id;
+            }
         }
 
         $this->messageModel->save([
@@ -107,7 +110,109 @@ class Chatbot extends Controller
         ]);
 
         return $this->response->setJSON([
-            'reply' => $botResponse,
+            'reply'           => $botResponse,
+            'conversation_id' => $conversationId,
+        ]);
+    }
+
+    public function listConversations()
+    {
+        if (! $this->request->isAJAX()) {
+            return $this->response->setStatusCode(400)->setJSON(['error' => 'Invalid request']);
+        }
+
+        $sessionId = $this->ensureSession();
+
+        $conversations = $this->conversationModel
+            ->where('session_id', $sessionId)
+            ->orderBy('updated_at', 'DESC')
+            ->findAll();
+
+        $data = [];
+        foreach ($conversations as $conv) {
+            $msgCount = $this->messageModel
+                ->where('conversation_id', $conv->id)
+                ->countAllResults();
+            $data[] = [
+                'id'         => $conv->id,
+                'title'      => $conv->title,
+                'messages'   => $msgCount,
+                'created_at' => $conv->created_at,
+            ];
+        }
+
+        return $this->response->setJSON($data);
+    }
+
+    public function newConversation()
+    {
+        if (! $this->request->isAJAX()) {
+            return $this->response->setStatusCode(400)->setJSON(['error' => 'Invalid request']);
+        }
+
+        $sessionId = $this->ensureSession();
+
+        $id = $this->conversationModel->insert([
+            'session_id' => $sessionId,
+            'title'      => 'New Conversation',
+        ]);
+
+        return $this->response->setJSON([
+            'id'    => $id,
+            'title' => 'New Conversation',
+        ]);
+    }
+
+    public function loadConversation($id = null)
+    {
+        if (! $this->request->isAJAX()) {
+            return $this->response->setStatusCode(400)->setJSON(['error' => 'Invalid request']);
+        }
+
+        $messages = $this->messageModel
+            ->where('conversation_id', $id)
+            ->orderBy('created_at', 'ASC')
+            ->findAll();
+
+        $conversation = $this->conversationModel->find($id);
+
+        $data = [];
+        foreach ($messages as $msg) {
+            $data[] = [
+                'id'         => $msg->id,
+                'role'       => $msg->role,
+                'message'    => $msg->message,
+                'created_at' => $msg->created_at,
+            ];
+        }
+
+        return $this->response->setJSON([
+            'conversation' => $conversation ? ['id' => $conversation->id, 'title' => $conversation->title] : null,
+            'messages'     => $data,
+        ]);
+    }
+
+    public function deleteConversation($id = null)
+    {
+        if (! $this->request->isAJAX()) {
+            return $this->response->setStatusCode(400)->setJSON(['error' => 'Invalid request']);
+        }
+
+        $this->messageModel->where('conversation_id', $id)->delete();
+        $this->conversationModel->delete($id);
+
+        return $this->response->setJSON(['success' => true]);
+    }
+
+    public function status()
+    {
+        if (! $this->request->isAJAX()) {
+            return $this->response->setStatusCode(400)->setJSON(['error' => 'Invalid request']);
+        }
+
+        $client = new OllamaClient();
+        return $this->response->setJSON([
+            'available' => $client->isAvailable(),
         ]);
     }
 
