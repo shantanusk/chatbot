@@ -13,12 +13,12 @@ class OllamaClient
         $this->config = config(Ollama::class);
     }
 
-    public function chat(array $messages): string
+    public function chat(array $messages, ?string $model = null): string
     {
         $systemMessage = array_shift($messages);
 
         $payload = [
-            'model'   => $this->config->model,
+            'model'   => $model ?? $this->config->model,
             'stream'  => false,
             'options' => $this->config->options,
             'messages' => array_merge(
@@ -41,6 +41,69 @@ class OllamaClient
         return 'I\'m not sure how to respond to that.';
     }
 
+    public function chatStream(array $messages, callable $onChunk, ?string $model = null): void
+    {
+        $systemMessage = array_shift($messages);
+
+        $payload = [
+            'model'   => $model ?? $this->config->model,
+            'stream'  => true,
+            'options' => $this->config->options,
+            'messages' => array_merge(
+                [$systemMessage],
+                $messages
+            ),
+        ];
+
+        $json = json_encode($payload);
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL            => $this->config->host . '/api/chat',
+            CURLOPT_RETURNTRANSFER => false,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => $json,
+            CURLOPT_TIMEOUT        => 120,
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'Content-Length: ' . strlen($json),
+            ],
+            CURLOPT_WRITEFUNCTION => function ($ch, $data) use ($onChunk) {
+                $lines = explode("\n", $data);
+                foreach ($lines as $line) {
+                    $line = trim($line);
+                    if ($line === '') continue;
+                    $decoded = json_decode($line, true);
+                    if ($decoded && isset($decoded['message']['content'])) {
+                        $onChunk($decoded['message']['content'], $decoded['done'] ?? false);
+                    }
+                }
+                return strlen($data);
+            },
+        ]);
+
+        curl_exec($ch);
+        curl_close($ch);
+    }
+
+    public function listModels(): array
+    {
+        $response = $this->get('/api/tags');
+        if ($response === null || ! isset($response['models'])) {
+            return [];
+        }
+
+        $models = [];
+        foreach ($response['models'] as $m) {
+            $models[] = [
+                'name' => $m['name'],
+                'size' => $this->formatBytes($m['size'] ?? 0),
+            ];
+        }
+        return $models;
+    }
+
     public function isAvailable(): bool
     {
         try {
@@ -49,6 +112,17 @@ class OllamaClient
         } catch (\Exception $e) {
             return false;
         }
+    }
+
+    private function formatBytes(int $bytes): string
+    {
+        $units = ['B', 'KB', 'MB', 'GB'];
+        $i = 0;
+        while ($bytes >= 1024 && $i < count($units) - 1) {
+            $bytes /= 1024;
+            $i++;
+        }
+        return round($bytes, 1) . ' ' . $units[$i];
     }
 
     protected function get(string $endpoint): ?array

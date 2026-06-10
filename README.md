@@ -1,14 +1,20 @@
 # CI4 HMVC Chatbot
 
-AI-powered chatbot built with **CodeIgniter 4** using **HMVC (Hierarchical Model-View-Controller)** architecture and **Ollama** for local LLM inference.
+AI-powered chatbot built with **CodeIgniter 4** using **HMVC** architecture and **Ollama** for local LLM inference. All software used is free and open source.
 
 ## Features
 
-- **HMVC Architecture** — Self-contained `Chatbot` module with its own routes, controllers, models, views, config, and libraries
-- **AI-Powered Responses** — Uses Ollama (local LLM) with configurable model, temperature, and system prompt
-- **Persistent Conversations** — Session-based chat history stored in MySQL
-- **Real-Time UI** — AJAX chat interface with Tailwind CSS, typing indicator, and smooth scrolling
-- **Context-Aware** — Full conversation history sent to the LLM for coherent multi-turn dialogue
+- **Glassmorphism UI** — Modern frosted-glass design with animated gradient background, dark/light mode
+- **Conversation Manager** — Sidebar with list of conversations, create/switch/delete
+- **Markdown Rendering** — Bot messages support bold, code blocks, lists, links
+- **Suggestion Chips** — One-click prompts for quick conversations
+- **Voice Input** — Speech-to-text mic button (Chrome/Edge/Safari)
+- **Voice Output** — Speaker button on bot messages reads them aloud
+- **Session-Based History** — Conversations persist per browser session in MySQL
+- **AI-Powered** — Ollama local LLM with configurable model, temperature, system prompt
+- **Context-Aware** — Full conversation history sent to the LLM for coherent dialogue
+- **Responsive** — Mobile-friendly with collapsible sidebar
+- **HMVC Architecture** — Self-contained module with routes, controllers, models, views, config
 
 ---
 
@@ -134,29 +140,29 @@ Open `http://localhost:8080/chatbot` in your browser.
 ```
 app/
 ├── Config/
-│   ├── Autoload.php     # PSR-4: 'Modules\Chatbot' => APPPATH . 'Modules/Chatbot'
-│   ├── Routes.php       # Main routes — loads module routes via auto-discovery
-│   └── Modules.php      # Module discovery enabled with 'routes' in $aliases
+│   ├── Autoload.php        # PSR-4: 'Modules\Chatbot' => APPPATH . 'Modules/Chatbot'
+│   ├── Routes.php          # Redirects / → /chatbot
+│   └── Modules.php         # Module discovery enabled with 'routes' in $aliases
 │
 └── Modules/
-    └── Chatbot/              # Self-contained HMVC module
+    └── Chatbot/                 # Self-contained HMVC module
         ├── Config/
-        │   ├── Ollama.php    # Ollama API configuration
-        │   └── Routes.php    # Module routes (auto-discovered)
+        │   ├── Ollama.php       # Ollama API configuration
+        │   └── Routes.php       # Module routes (7 endpoints)
         ├── Controllers/
-        │   └── Chatbot.php   # Main controller (index + send)
+        │   └── Chatbot.php      # Controller with 7 methods
         ├── Database/
-        │   ├── Migrations/   # Table creation
-        │   └── Seeds/        # Sample data
+        │   ├── Migrations/      # Table creation
+        │   └── Seeds/           # Sample data
         ├── Filters/
         │   └── SessionFilter.php
         ├── Libraries/
-        │   └── OllamaClient.php  # cURL wrapper for Ollama API
+        │   └── OllamaClient.php # cURL wrapper for Ollama API
         ├── Models/
         │   ├── ConversationModel.php
         │   └── MessageModel.php
         └── Views/
-            └── chat.php      # Tailwind CSS chat UI
+            └── chat.php         # Glassmorphism UI (Tailwind + vanilla JS)
 ```
 
 ### HMVC Pattern
@@ -168,7 +174,7 @@ Each module is a self-contained unit with its own:
 | **Routes** | `Config/Routes.php` | URL routing, auto-discovered by CI4 |
 | **Controller** | `Controllers/Chatbot.php` | Request handling, business logic |
 | **Model** | `Models/*.php` | Database interaction |
-| **View** | `Views/chat.php` | UI presentation |
+| **View** | `Views/chat.php` | Glassmorphism UI (Tailwind CSS + vanilla JS) |
 | **Config** | `Config/Ollama.php` | Module-specific settings |
 | **Library** | `Libraries/OllamaClient.php` | External API client |
 | **Migrations** | `Database/Migrations/` | Schema versioning |
@@ -188,29 +194,31 @@ public $psr4 = [
 Browser: GET /chatbot
   │
   ▼
-CI4 Router → matches `chatbot` route
-  │
-  ▼
 Chatbot::index()
   ├─ ensureSession() — creates session ID if needed
   ├─ loads latest conversation + messages from MySQL
-  └─ renders chat.php (server-side rendered history + sendUrl)
+  └─ renders chat.php (glassmorphism UI with server-rendered history)
   │
   ▼
-User types message → JavaScript fetch() to POST /chatbot/send
+On page load, JavaScript calls:
+  ├─ GET /chatbot/status  → shows green/red dot in header
+  └─ GET /chatbot/conversations  → populates sidebar
+  │
+  ▼
+User types message → sendMessage()
+  │  POST /chatbot/send  { message, conversation_id? }
   │
   ▼
 Chatbot::send()
-  ├─ validates AJAX header + message content
   ├─ saves user message to messages table
   ├─ loads full conversation history
   ├─ calls generateAIResponse($history)
   │     └─ OllamaClient::chat() → POST http://localhost:11434/api/chat
   ├─ saves bot response to messages table
-  └─ returns JSON { reply: "..." }
+  └─ returns JSON { reply, conversation_id }
   │
   ▼
-JavaScript appends bot bubble to DOM
+JavaScript appends bot bubble (markdown-rendered) + updates sidebar
 ```
 
 ### Routes
@@ -219,6 +227,11 @@ JavaScript appends bot bubble to DOM
 |--------|-----|---------|-------------|
 | GET | `/chatbot` | `Chatbot::index` | Render chat UI |
 | POST | `/chatbot/send` | `Chatbot::send` | Send message, get AI reply |
+| GET | `/chatbot/conversations` | `Chatbot::listConversations` | List conversations for this session |
+| POST | `/chatbot/new` | `Chatbot::newConversation` | Create a new conversation |
+| GET | `/chatbot/load/{id}` | `Chatbot::loadConversation` | Load messages for a conversation |
+| POST | `/chatbot/delete/{id}` | `Chatbot::deleteConversation` | Delete a conversation |
+| GET | `/chatbot/status` | `Chatbot::status` | Check Ollama availability |
 
 Defined in `app/Modules/Chatbot/Config/Routes.php`:
 
@@ -226,6 +239,11 @@ Defined in `app/Modules/Chatbot/Config/Routes.php`:
 $routes->group('chatbot', ['namespace' => 'Modules\Chatbot\Controllers'], static function ($routes) {
     $routes->get('/', 'Chatbot::index');
     $routes->post('send', 'Chatbot::send');
+    $routes->get('conversations', 'Chatbot::listConversations');
+    $routes->post('new', 'Chatbot::newConversation');
+    $routes->get('load/(:num)', 'Chatbot::loadConversation/$1');
+    $routes->post('delete/(:num)', 'Chatbot::deleteConversation/$1');
+    $routes->get('status', 'Chatbot::status');
 });
 ```
 
@@ -233,28 +251,25 @@ $routes->group('chatbot', ['namespace' => 'Modules\Chatbot\Controllers'], static
 
 ## API Reference
 
+All endpoints require the header `X-Requested-With: XMLHttpRequest`.
+
 ### POST `/chatbot/send`
 
 Send a message and receive an AI-generated reply.
-
-**Headers:**
-
-| Header | Required | Value |
-|--------|----------|-------|
-| `X-Requested-With` | Yes | `XMLHttpRequest` |
-| `Content-Type` | Yes | `application/x-www-form-urlencoded` or `multipart/form-data` |
 
 **Request Body:**
 
 | Param | Type | Required | Description |
 |-------|------|----------|-------------|
 | `message` | string | Yes | The user's message text |
+| `conversation_id` | int | No | Target conversation (auto-creates if omitted) |
 
 **Success Response (200):**
 
 ```json
 {
-    "reply": "Hello! How can I help you today?"
+    "reply": "Hello! How can I help you today?",
+    "conversation_id": 1
 }
 ```
 
@@ -271,6 +286,65 @@ Send a message and receive an AI-generated reply.
 curl -X POST http://localhost:8080/chatbot/send \
   -d "message=Hello" \
   -H "X-Requested-With: XMLHttpRequest"
+```
+
+### GET `/chatbot/conversations`
+
+List all conversations in the current session.
+
+**Success Response (200):**
+
+```json
+[
+    {"id": 1, "title": "Hello", "messages": 5, "created_at": "2026-06-10 10:00:00"},
+    {"id": 2, "title": "New Conversation", "messages": 0, "created_at": "2026-06-10 10:05:00"}
+]
+```
+
+### POST `/chatbot/new`
+
+Create a new blank conversation.
+
+**Success Response (200):**
+
+```json
+{"id": 3, "title": "New Conversation"}
+```
+
+### GET `/chatbot/load/{id}`
+
+Load all messages for a conversation.
+
+**Success Response (200):**
+
+```json
+{
+    "conversation": {"id": 1, "title": "Hello"},
+    "messages": [
+        {"id": 1, "role": "user", "message": "Hello", "created_at": "..."},
+        {"id": 2, "role": "bot", "message": "Hi there!", "created_at": "..."}
+    ]
+}
+```
+
+### POST `/chatbot/delete/{id}`
+
+Delete a conversation and all its messages.
+
+**Success Response (200):**
+
+```json
+{"success": true}
+```
+
+### GET `/chatbot/status`
+
+Check if Ollama is reachable.
+
+**Success Response (200):**
+
+```json
+{"available": true}
 ```
 
 ---
@@ -418,6 +492,33 @@ The first request loads the LLM into memory (can take 30-60s for 2B+ models). Su
 curl -X POST http://localhost:11434/api/chat \
   -d '{"model": "gemma:2b", "messages": [{"role": "user", "content": "hi"}]}'
 ```
+
+---
+
+## Voice Features
+
+### Speech-to-Text (Voice Input)
+
+A microphone button appears next to the send input in Chrome, Edge, and Safari. Tap to start recording — your speech is transcribed into the input field and automatically sent when you stop speaking.
+
+**Why not Firefox?** Firefox does not implement the Web Speech Recognition API. The mic button is hidden automatically when unsupported.
+
+### Text-to-Speech (Read Aloud)
+
+Every bot message has a speaker icon (visible on hover). Click to hear the message read aloud. Click again to stop. Uses the `SpeechSynthesis` API, supported in all modern browsers including Firefox.
+
+---
+
+## Tech Stack
+
+| Component | Technology | License |
+|-----------|-----------|---------|
+| Framework | CodeIgniter 4 | MIT |
+| Frontend | Tailwind CSS + Font Awesome | MIT |
+| AI Engine | Ollama (local LLM) | MIT |
+| Database | MySQL / MariaDB | GPL / MIT |
+| Language | PHP 8.2 | PHP License |
+| Voice API | Web Speech API (browser built-in) | Free |
 
 ---
 
