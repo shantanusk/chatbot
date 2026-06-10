@@ -291,6 +291,29 @@
             display: none;
         }
 
+        /* Mic button */
+        #micBtn { transition: all 0.2s ease; }
+        #micBtn:hover { background: rgba(255, 255, 255, 0.2) !important; color: rgba(255, 255, 255, 0.9) !important; }
+        #micBtn.recording {
+            background: rgba(239, 68, 68, 0.3) !important;
+            border-color: rgba(239, 68, 68, 0.5) !important;
+            color: #ef4444 !important;
+            animation: pulse-mic 1s ease infinite;
+        }
+        @keyframes pulse-mic {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            50% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+        }
+
+        /* Speaker button */
+        .speaker-btn { transition: all 0.2s ease; }
+        .speaker-btn:hover { color: rgba(255, 255, 255, 0.9) !important; }
+        .speaker-btn.speaking { color: #a78bfa !important; animation: pulse-speak 0.8s ease infinite; }
+        @keyframes pulse-speak {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
         @media (max-width: 768px) {
             body { padding: 0; align-items: stretch; }
             #chatContainer {
@@ -420,9 +443,14 @@
                                         <?php endif; ?>
                                     </div>
                                     <?php if (! $isUser): ?>
-                                        <button onclick="copyMessage(this)" class="absolute -bottom-5 right-0 text-white/30 hover:text-white/70 transition-colors text-xs opacity-0 group-hover:opacity-100">
-                                            <i class="fas fa-copy"></i>
-                                        </button>
+                                        <div class="flex gap-1.5 absolute -bottom-5 right-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button onclick="speakMessage(this)" class="speaker-btn text-white/30 hover:text-white/70 transition-colors text-xs">
+                                                <i class="fas fa-volume-up"></i>
+                                            </button>
+                                            <button onclick="copyMessage(this)" class="text-white/30 hover:text-white/70 transition-colors text-xs">
+                                                <i class="fas fa-copy"></i>
+                                            </button>
+                                        </div>
                                     <?php endif; ?>
                                     <div class="text-[10px] text-white/30 mt-0.5 <?= $timeAlign ?>" title="<?= $timeTitle ?>">
                                         <?= $timeDisplay ?>
@@ -463,6 +491,9 @@
                     <div class="flex-1 relative">
                         <textarea id="messageInput" rows="1" placeholder="Type your message..." oninput="autoResize(this)" onkeydown="handleKeyDown(event)"></textarea>
                     </div>
+                    <button id="micBtn" onclick="toggleRecording()" class="flex-shrink-0" title="Voice input" style="width:48px;height:48px;border-radius:16px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.6);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s ease;">
+                        <i class="fas fa-microphone"></i>
+                    </button>
                     <button id="sendBtn" onclick="sendMessage()">
                         <i class="fas fa-paper-plane"></i>
                     </button>
@@ -717,11 +748,22 @@
                 md.innerHTML = renderMarkdown(escHtml(text));
                 bubble.appendChild(md);
 
+                var actionRow = document.createElement('div');
+                actionRow.className = 'flex gap-1.5 absolute -bottom-5 right-0 opacity-0 group-hover:opacity-100 transition-opacity';
+
+                var speakBtn = document.createElement('button');
+                speakBtn.onclick = function() { speakMessage(this); };
+                speakBtn.className = 'speaker-btn text-white/30 hover:text-white/70 transition-colors text-xs';
+                speakBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+                actionRow.appendChild(speakBtn);
+
                 var copyBtn = document.createElement('button');
                 copyBtn.onclick = function() { copyMessage(this); };
-                copyBtn.className = 'absolute -bottom-5 right-0 text-white/30 hover:text-white/70 transition-colors text-xs opacity-0 group-hover:opacity-100';
+                copyBtn.className = 'text-white/30 hover:text-white/70 transition-colors text-xs';
                 copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
-                bubbleWrap.appendChild(copyBtn);
+                actionRow.appendChild(copyBtn);
+
+                bubbleWrap.appendChild(actionRow);
             }
 
             bubbleWrap.appendChild(bubble);
@@ -868,6 +910,132 @@
             if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
             if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
             return date.toLocaleDateString();
+        }
+
+        // --- Voice: Speech-to-Text ---
+        var recognition = null;
+        var isRecording = false;
+        var micBtn = document.getElementById('micBtn');
+        var SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        // Hide mic button if API not available (Firefox, etc.)
+        if (!SpeechRecognitionAPI) {
+            micBtn.style.display = 'none';
+        }
+
+        function toggleRecording() {
+            if (isRecording) {
+                stopRecording();
+                return;
+            }
+            startRecording();
+        }
+
+        function startRecording() {
+            if (!SpeechRecognitionAPI) return;
+
+            if (recognition) {
+                recognition.abort();
+            }
+
+            recognition = new SpeechRecognitionAPI();
+
+            if (recognition) {
+                recognition.abort();
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.interimResults = true;
+            recognition.continuous = true;
+
+            recognition.onresult = function(event) {
+                var transcript = '';
+                for (var i = event.resultIndex; i < event.results.length; i++) {
+                    transcript += event.results[i][0].transcript;
+                }
+                messageInput.value = transcript;
+                autoResize(messageInput);
+            };
+
+            recognition.onerror = function(event) {
+                console.error('Speech error:', event.error);
+                stopRecording();
+                if (event.error === 'not-allowed') {
+                    alert('Microphone access denied. Please allow microphone permissions.');
+                }
+            };
+
+            recognition.onend = function() {
+                // Auto-send if we got text
+                if (messageInput.value.trim()) {
+                    sendMessage();
+                }
+                stopRecording();
+            };
+
+            try {
+                recognition.start();
+                isRecording = true;
+                micBtn.classList.add('recording');
+                micBtn.innerHTML = '<i class="fas fa-stop"></i>';
+                micBtn.title = 'Stop recording';
+            } catch (e) {
+                console.error('Failed to start recognition:', e);
+            }
+        }
+
+        function stopRecording() {
+            if (recognition) {
+                try { recognition.stop(); } catch (e) {}
+                recognition = null;
+            }
+            isRecording = false;
+            micBtn.classList.remove('recording');
+            micBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+            micBtn.title = 'Voice input';
+        }
+
+        // --- Voice: Text-to-Speech ---
+        function speakMessage(btn) {
+            var bubbleWrap = btn.closest('.relative');
+            var textEl = bubbleWrap.querySelector('.markdown-content');
+            if (!textEl) return;
+
+            var text = textEl.textContent.trim();
+            if (!text) return;
+
+            // If already speaking, stop
+            if (btn.classList.contains('speaking')) {
+                window.speechSynthesis.cancel();
+                btn.classList.remove('speaking');
+                return;
+            }
+
+            // Stop any other active speech
+            window.speechSynthesis.cancel();
+            document.querySelectorAll('.speaker-btn.speaking').forEach(function(el) {
+                el.classList.remove('speaking');
+            });
+
+            var utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US';
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+
+            utterance.onstart = function() {
+                btn.classList.add('speaking');
+            };
+
+            utterance.onend = function() {
+                btn.classList.remove('speaking');
+            };
+
+            utterance.onerror = function() {
+                btn.classList.remove('speaking');
+            };
+
+            window.speechSynthesis.speak(utterance);
         }
     </script>
 </body>
