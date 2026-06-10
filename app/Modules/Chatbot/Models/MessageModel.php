@@ -12,5 +12,6 @@ class MessageModel extends Model
     protected $useTimestamps    = true;
     protected $createdField     = 'created_at';
     protected $updatedField     = '';
+    protected $useSoftDeletes   = true;
     protected $returnType       = 'object';
 }

@@ -24,14 +24,38 @@ class Chatbot extends Controller
         return session('user_id');
     }
 
+    private function getSessionFallback(): string
+    {
+        $session = service('session');
+        $sid = $session->get('chatbot_session_id');
+        if (! $sid) {
+            $sid = bin2hex(random_bytes(16));
+            $session->set('chatbot_session_id', $sid);
+        }
+        return $sid;
+    }
+
     public function index()
     {
         $userId = $this->getUserId();
+        $sessionId = $this->getSessionFallback();
 
         $conversation = $this->conversationModel
             ->where('user_id', $userId)
             ->orderBy('created_at', 'DESC')
             ->first();
+
+        // Fallback: find old session-based conversations
+        if (! $conversation) {
+            $conversation = $this->conversationModel
+                ->where('session_id', $sessionId)
+                ->where('user_id', null)
+                ->orderBy('created_at', 'DESC')
+                ->first();
+            if ($conversation) {
+                $this->conversationModel->update($conversation->id, ['user_id' => $userId]);
+            }
+        }
 
         $messages = [];
         $conversationId = null;
@@ -52,7 +76,7 @@ class Chatbot extends Controller
         $availableModels = $client->listModels();
 
         helper('url');
-        $sendUrl = site_url('chatbot/send');
+        $sendUrl = base_url('chatbot/send');
 
         return view('Modules\Chatbot\Views\chat', [
             'messages'        => $messages,
@@ -87,6 +111,18 @@ class Chatbot extends Controller
                 ->where('user_id', $userId)
                 ->orderBy('created_at', 'DESC')
                 ->first();
+
+            if (! $conversation) {
+                $sessionId = $this->getSessionFallback();
+                $conversation = $this->conversationModel
+                    ->where('session_id', $sessionId)
+                    ->where('user_id', null)
+                    ->orderBy('created_at', 'DESC')
+                    ->first();
+                if ($conversation) {
+                    $this->conversationModel->update($conversation->id, ['user_id' => $userId]);
+                }
+            }
 
             if (! $conversation) {
                 $data = ['user_id' => $userId, 'title' => mb_substr($message, 0, 50)];
@@ -188,11 +224,25 @@ class Chatbot extends Controller
         }
 
         $userId = $this->getUserId();
+        $sessionId = $this->getSessionFallback();
 
         $conversations = $this->conversationModel
             ->where('user_id', $userId)
             ->orderBy('updated_at', 'DESC')
             ->findAll();
+
+        // Include old session-based conversations and claim them
+        if (empty($conversations)) {
+            $oldConvs = $this->conversationModel
+                ->where('session_id', $sessionId)
+                ->where('user_id', null)
+                ->orderBy('updated_at', 'DESC')
+                ->findAll();
+            foreach ($oldConvs as $oc) {
+                $this->conversationModel->update($oc->id, ['user_id' => $userId]);
+            }
+            $conversations = $oldConvs;
+        }
 
         $data = [];
         foreach ($conversations as $conv) {
@@ -271,8 +321,23 @@ class Chatbot extends Controller
             return $this->response->setStatusCode(400)->setJSON(['error' => 'Invalid request']);
         }
 
-        $this->messageModel->where('conversation_id', $id)->delete();
         $this->conversationModel->delete($id);
+
+        return $this->response->setJSON(['success' => true]);
+    }
+
+    public function restore($id = null)
+    {
+        if (! $this->request->isAJAX()) {
+            return $this->response->setStatusCode(400)->setJSON(['error' => 'Invalid request']);
+        }
+
+        $conv = $this->conversationModel->withDeleted()->find($id);
+        if (! $conv || $conv->user_id !== $this->getUserId()) {
+            return $this->response->setStatusCode(404)->setJSON(['error' => 'Not found']);
+        }
+
+        $this->conversationModel->update($id, ['deleted_at' => null]);
 
         return $this->response->setJSON(['success' => true]);
     }

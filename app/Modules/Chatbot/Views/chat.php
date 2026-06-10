@@ -36,6 +36,21 @@
             backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
+        body:not(.dark) #sidebar.glass {
+            background: rgba(255, 255, 255, 0.55);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+        .dark #sidebar.glass { background: rgba(0, 0, 0, 0.25); }
+        body:not(.dark) #sidebar h2,
+        body:not(.dark) #sidebar .text-white\/80 { color: rgba(30, 30, 50, 0.9) !important; }
+        body:not(.dark) #sidebar .text-white\/70 { color: rgba(30, 30, 50, 0.8) !important; }
+        body:not(.dark) #sidebar .text-white\/60 { color: rgba(30, 30, 50, 0.7) !important; }
+        body:not(.dark) #sidebar .text-white\/50 { color: rgba(30, 30, 50, 0.6) !important; }
+        body:not(.dark) #sidebar .text-white\/40,
+        body:not(.dark) #sidebar .text-white\/30 { color: rgba(30, 30, 50, 0.45) !important; }
+        body:not(.dark) #sidebar .text-white\/20 { color: rgba(30, 30, 50, 0.3) !important; }
+        body:not(.dark) #sidebar .glass-card { border-color: rgba(0, 0, 0, 0.08) !important; }
+        body:not(.dark) #sidebar .conv-active { background: rgba(100, 120, 200, 0.2) !important; }
         .dark .glass {
             background: rgba(0, 0, 0, 0.25);
             border-color: rgba(255, 255, 255, 0.08);
@@ -77,8 +92,14 @@
             transition: transform 0.3s ease, opacity 0.3s ease;
         }
         .dark #sidebar { border-color: rgba(255, 255, 255, 0.06); }
-        #sidebar.hidden-sidebar { transform: translateX(-100%); opacity: 0; position: absolute; z-index: 10; height: 100%; }
-        #sidebar.show-sidebar { transform: translateX(0); opacity: 1; position: absolute; z-index: 10; height: 100%; }
+        #sidebar.collapsed { transform: translateX(-100%); position: absolute; z-index: 10; height: 100%; }
+        @media (max-width: 768px) {
+            #sidebar:not(.show) { transform: translateX(-100%); position: absolute; z-index: 20; height: 100%; border-radius: 0 16px 16px 0; }
+            #sidebar.show { transform: translateX(0); position: absolute; z-index: 20; height: 100%; box-shadow: 0 0 40px rgba(0,0,0,0.3); }
+        }
+        @media (min-width: 769px) {
+            #sidebar.collapsed { transform: translateX(-100%); position: absolute; z-index: 10; height: 100%; }
+        }
         #mainChat { flex: 1; display: flex; flex-direction: column; min-width: 0; }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -148,12 +169,10 @@
         .bubble-bot p { margin: 4px 0; }
         .conv-active { background: rgba(255, 255, 255, 0.15) !important; border-color: rgba(255, 255, 255, 0.3) !important; }
         .dark .conv-active { background: rgba(255, 255, 255, 0.08) !important; border-color: rgba(255, 255, 255, 0.15) !important; }
-        #sidebarToggle { display: none; }
+        #sidebarToggle { display: flex; }
         @media (max-width: 768px) {
             body { padding: 0; align-items: stretch; }
             #chatContainer { height: 100vh; max-height: none; border-radius: 0; }
-            #sidebar { position: absolute; z-index: 20; height: 100%; left: 0; top: 0; transform: translateX(-100%); width: 280px; border-radius: 0 16px 16px 0; }
-            #sidebar.show-sidebar { transform: translateX(0); box-shadow: 0 0 40px rgba(0,0,0,0.3); }
             #sidebarToggle { display: flex !important; }
             .suggestions-row { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
         }
@@ -189,17 +208,19 @@
         #uploadBtn { transition: all 0.2s ease; }
         #uploadBtn:hover { background: rgba(255, 255, 255, 0.2) !important; color: rgba(255, 255, 255, 0.9) !important; }
         /* Toast */
-        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(100px); background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(12px); color: white; padding: 8px 20px; border-radius: 12px; font-size: 13px; transition: transform 0.3s ease; z-index: 100; pointer-events: none; }
-        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(100px); background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(12px); color: white; padding: 8px 20px; border-radius: 12px; font-size: 13px; transition: transform 0.3s ease; z-index: 100; pointer-events: none; display: flex; align-items: center; gap: 12px; }
+        .toast.show { transform: translateX(-50%) translateY(0); pointer-events: auto; }
+        .toast button { background: rgba(255,255,255,0.15); border: none; color: white; padding: 4px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; white-space: nowrap; }
+        .toast button:hover { background: rgba(255,255,255,0.25); }
     </style>
 </head>
 <body>
-    <div id="toast" class="toast"></div>
+    <div id="toast" class="toast"><span id="toastMsg"></span><button id="toastAction" style="display:none"></button></div>
 
     <div id="chatContainer" class="glass-strong">
 
         <!-- Sidebar -->
-        <div id="sidebar" class="glass hidden-sidebar">
+        <div id="sidebar" class="glass">
             <div class="p-4 border-b border-white/10 dark:border-white/5 flex items-center justify-between">
                 <h2 class="text-white/80 text-sm font-semibold tracking-wide uppercase">Conversations</h2>
                 <button onclick="toggleSidebar()" class="text-white/50 hover:text-white/80 transition-colors text-lg">
@@ -250,7 +271,7 @@
                 </button>
                 <div class="flex items-center gap-1.5 border-l border-white/10 pl-3 ml-1">
                     <span class="text-white/50 text-xs hidden md:inline"><?= esc($username ?? '') ?></span>
-                    <a href="/auth/logout" class="text-white/40 hover:text-red-400 transition-colors text-xs" title="Logout">
+                    <a href="<?= base_url('auth/logout') ?>" class="text-white/40 hover:text-red-400 transition-colors text-xs" title="Logout">
                         <i class="fas fa-sign-out-alt"></i>
                     </a>
                 </div>
@@ -453,7 +474,7 @@
             }
             // Escape: Close sidebar / stop speaking
             if (e.key === 'Escape') {
-                if (sidebar.classList.contains('show-sidebar')) {
+                if (sidebar.classList.contains('show') || sidebar.classList.contains('collapsed')) {
                     toggleSidebar();
                 }
                 window.speechSynthesis.cancel();
@@ -474,10 +495,27 @@
             }
         });
 
-        function showToast(msg) {
-            toast.textContent = msg;
+        function showToast(msg, undoCallback) {
+            var toastMsg = document.getElementById('toastMsg');
+            var toastAction = document.getElementById('toastAction');
+            toastMsg.textContent = msg;
+            if (undoCallback) {
+                toastAction.textContent = 'Undo';
+                toastAction.style.display = '';
+                toastAction.onclick = function() {
+                    undoCallback();
+                    hideToast();
+                };
+            } else {
+                toastAction.style.display = 'none';
+                toastAction.onclick = null;
+            }
             toast.classList.add('show');
-            setTimeout(function() { toast.classList.remove('show'); }, 2000);
+            if (toast._timeout) clearTimeout(toast._timeout);
+            toast._timeout = setTimeout(hideToast, 4000);
+        }
+        function hideToast() {
+            toast.classList.remove('show');
         }
 
         function populateModels() {
@@ -533,8 +571,12 @@
         }
 
         function toggleSidebar() {
-            sidebar.classList.toggle('hidden-sidebar');
-            sidebar.classList.toggle('show-sidebar');
+            var isMobile = window.innerWidth <= 768;
+            if (isMobile) {
+                sidebar.classList.toggle('show');
+            } else {
+                sidebar.classList.toggle('collapsed');
+            }
         }
 
         // Settings
@@ -636,7 +678,7 @@
                 clearMessages();
                 showWelcome();
                 loadConversations();
-                if (window.innerWidth <= 768) toggleSidebar();
+                if (window.innerWidth <= 768) hideSidebar();
                 messageInput.focus();
             } catch {}
         }
@@ -668,7 +710,7 @@
                 }
                 loadConversations();
                 scrollToBottom();
-                if (window.innerWidth <= 768) toggleSidebar();
+                if (window.innerWidth <= 768) hideSidebar();
             } catch {}
         }
 
@@ -678,12 +720,28 @@
                 await fetch(baseUrl + '/delete/' + id, {
                     method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 });
-                if (activeConversationId === id) {
+                var wasActive = activeConversationId === id;
+                if (wasActive) {
                     activeConversationId = null;
                     clearMessages();
                     showWelcome();
                 }
                 loadConversations();
+                showToast('Conversation deleted', function() { restoreConversation(id, wasActive); });
+            } catch {}
+        }
+
+        async function restoreConversation(id, restoreAsActive) {
+            try {
+                await fetch(baseUrl + '/restore/' + id, {
+                    method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                if (restoreAsActive) {
+                    activeConversationId = id;
+                    switchConversation(id);
+                }
+                loadConversations();
+                showToast('Conversation restored');
             } catch {}
         }
 

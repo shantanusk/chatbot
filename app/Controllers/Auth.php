@@ -8,8 +8,10 @@ class Auth extends BaseController
 {
     public function login()
     {
+        helper('url');
+
         if (session('user_id')) {
-            return redirect()->to('/chatbot');
+            return redirect()->to(base_url('chatbot'));
         }
 
         if ($this->request->getMethod() === 'POST') {
@@ -24,7 +26,7 @@ class Auth extends BaseController
                     'user_id'  => $user->id,
                     'username' => $user->username,
                 ]);
-                return redirect()->to('/chatbot');
+                return redirect()->to(base_url('chatbot'));
             }
 
             return view('auth/login', ['error' => 'Invalid username or password']);
@@ -35,8 +37,10 @@ class Auth extends BaseController
 
     public function register()
     {
+        helper('url');
+
         if (session('user_id')) {
-            return redirect()->to('/chatbot');
+            return redirect()->to(base_url('chatbot'));
         }
 
         if ($this->request->getMethod() === 'POST') {
@@ -68,7 +72,7 @@ class Auth extends BaseController
                 'username' => $user->username,
             ]);
 
-            return redirect()->to('/chatbot');
+            return redirect()->to(base_url('chatbot'));
         }
 
         return view('auth/register');
@@ -77,6 +81,6 @@ class Auth extends BaseController
     public function logout()
     {
         session()->destroy();
-        return redirect()->to('/auth/login');
+        return redirect()->to(base_url('auth/login'));
     }
 }

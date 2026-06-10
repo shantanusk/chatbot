@@ -102,7 +102,7 @@
 
         <p class="text-center mt-6 text-white/40 text-sm">
             Already have an account?
-            <a href="/auth/login" class="text-white/70 hover:text-white transition-colors">Sign in</a>
+            <a href="<?= base_url('auth/login') ?>" class="text-white/70 hover:text-white transition-colors">Sign in</a>
         </p>
     </div>
 </body>

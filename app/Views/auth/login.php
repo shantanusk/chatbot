@@ -98,7 +98,7 @@
 
         <p class="text-center mt-6 text-white/40 text-sm">
             Don't have an account?
-            <a href="/auth/register" class="text-white/70 hover:text-white transition-colors">Create one</a>
+            <a href="<?= base_url('auth/register') ?>" class="text-white/70 hover:text-white transition-colors">Create one</a>
         </p>
     </div>
 </body>

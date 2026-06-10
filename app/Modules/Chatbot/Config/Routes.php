@@ -11,6 +11,7 @@ $routes->group('chatbot', ['namespace' => 'Modules\Chatbot\Controllers', 'filter
     $routes->post('new', 'Chatbot::newConversation');
     $routes->get('load/(:num)', 'Chatbot::loadConversation/$1');
     $routes->post('delete/(:num)', 'Chatbot::deleteConversation/$1');
+    $routes->post('restore/(:num)', 'Chatbot::restore/$1');
     $routes->get('status', 'Chatbot::status');
     $routes->get('models', 'Chatbot::listModels');
     $routes->post('rename/(:num)', 'Chatbot::rename/$1');
