@@ -41,9 +41,21 @@ AI-powered chatbot built with **CodeIgniter 4** using **HMVC** architecture and 
 
 ### 1. Setup the Application
 
+**Option A — Automated (recommended):**
+
 ```bash
-cd /var/www/html
-composer create-project codeigniter4/appstarter chatbot
+git clone git@github.com:shantanusk/chatbot.git
+cd chatbot
+chmod +x setup.sh && ./setup.sh
+```
+
+**Option B — Manual:**
+
+```bash
+git clone git@github.com:shantanusk/chatbot.git
+cd chatbot
+
+composer install
 ```
 
 ### 2. Configure Environment
